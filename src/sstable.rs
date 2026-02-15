@@ -104,7 +104,8 @@ impl SSTableBuilder {
 
         // Write index
         let index_offset = self.writer.stream_position()?;
-        let index_items: Vec<(Vec<u8>, u64)> = self.index.iter().map(|(k, v)| (k.clone(), *v)).collect();
+        let index_items: Vec<(Vec<u8>, u64)> =
+            self.index.iter().map(|(k, v)| (k.clone(), *v)).collect();
         for (key, offset) in index_items {
             self.write_and_checksum(&(key.len() as u32).to_le_bytes())?;
             self.write_and_checksum(&key)?;
@@ -192,7 +193,7 @@ impl SSTable {
         let mut hasher = 0xFFFFFFFFu32;
         let mut buffer = [0u8; 8192];
         let mut bytes_to_read = index_offset + index_size; // Records + Bloom + Index
-        
+
         while bytes_to_read > 0 {
             let to_read = std::cmp::min(buffer.len() as u64, bytes_to_read) as usize;
             check_file.read_exact(&mut buffer[..to_read])?;
@@ -201,7 +202,10 @@ impl SSTable {
         }
 
         if (!hasher) != expected_checksum {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "SSTable checksum mismatch"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "SSTable checksum mismatch",
+            ));
         }
 
         // Read Bloom Filter
@@ -231,7 +235,12 @@ impl SSTable {
             index.insert(key, offset);
         }
 
-        Ok(Self { file, index, bloom, path: path_buf })
+        Ok(Self {
+            file,
+            index,
+            bloom,
+            path: path_buf,
+        })
     }
 
     /// Returns the path to the `SSTable` file.
@@ -368,7 +377,14 @@ mod tests {
 
     fn setup_test_dir(name: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("lsm_test_{}_{}", name, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        path.push(format!(
+            "lsm_test_{}_{}",
+            name,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&path).unwrap();
         path
     }

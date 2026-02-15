@@ -140,7 +140,14 @@ mod tests {
 
     fn setup_test_dir(name: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("lsm_test_{}_{}", name, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        path.push(format!(
+            "lsm_test_{}_{}",
+            name,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&path).unwrap();
         path
     }

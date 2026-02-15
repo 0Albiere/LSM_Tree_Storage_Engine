@@ -12,5 +12,5 @@ pub mod sstable;
 pub mod wal;
 
 pub use engine::Engine;
-pub use memtable::{MemTable, Entry};
+pub use memtable::{Entry, MemTable};
 pub use sstable::SSTable;

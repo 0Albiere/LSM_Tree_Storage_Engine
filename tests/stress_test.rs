@@ -6,7 +6,14 @@ use std::time::SystemTime;
 
 fn setup_test_dir(name: &str) -> PathBuf {
     let mut path = std::env::temp_dir();
-    path.push(format!("lsm_stress_{}_{}", name, SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    path.push(format!(
+        "lsm_stress_{}_{}",
+        name,
+        SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
     std::fs::create_dir_all(&path).unwrap();
     path
 }
@@ -15,11 +22,11 @@ fn setup_test_dir(name: &str) -> PathBuf {
 fn test_concurrent_write_read_stress() {
     let dir = setup_test_dir("concurrent_stress");
     let engine = Arc::new(Engine::open(&dir, 64 * 1024).unwrap()); // 64KB memtable to trigger frequent flushes
-    
+
     let num_writers = 4;
     let num_readers = 4;
     let items_per_writer = 1000;
-    
+
     let barrier = Arc::new(Barrier::new(num_writers + num_readers));
     let mut handles = Vec::new();
 
@@ -45,7 +52,8 @@ fn test_concurrent_write_read_stress() {
             b.wait();
             let mut found = 0;
             for i in 0..(items_per_writer * num_writers) {
-                let key = format!("writer_{}_key_{}", i % num_writers, i / num_writers).into_bytes();
+                let key =
+                    format!("writer_{}_key_{}", i % num_writers, i / num_writers).into_bytes();
                 if let Ok(Some(_)) = e.get(&key) {
                     found += 1;
                 }

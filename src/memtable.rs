@@ -154,7 +154,7 @@ mod tests {
         */
         // My implementation DOES increase size. If the user wants NO change, I should adjust delete.
         // However, in LSM, deleting a key that is not in MemTable MUST still be recorded to delete it from SSTables.
-        // I will stick to LSM logic but maybe clarify with user? 
+        // I will stick to LSM logic but maybe clarify with user?
         // Or since they said "não deve alterar a memtable", maybe they mean for a simple in-memory store.
         // But this is an LSM engine.
         // Actually, if it's NOT in MemTable, it might be in an SSTable. So we NEED the tombstone.

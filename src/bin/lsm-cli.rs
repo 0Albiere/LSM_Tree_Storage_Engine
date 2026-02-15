@@ -1,4 +1,4 @@
-use lsm_storage_engine::{SSTable, Entry};
+use lsm_storage_engine::{Entry, SSTable};
 use std::env;
 use std::path::Path;
 
@@ -46,7 +46,9 @@ fn print_usage() {
     println!("Usage:");
     println!("  lsm-cli sst-dump <path>    - Dump metadata and records from an SSTable");
     println!("  lsm-cli sst-verify <path>  - Verify the checksum of an SSTable");
-    println!("  lsm-cli compact <data_dir> - Manually trigger compaction on all SSTables in a directory");
+    println!(
+        "  lsm-cli compact <data_dir> - Manually trigger compaction on all SSTables in a directory"
+    );
 }
 
 fn manual_compaction(dir: &str) -> std::io::Result<()> {
@@ -67,7 +69,7 @@ fn dump_sstable(path: &str) -> std::io::Result<()> {
     let sst = SSTable::open(path)?;
     println!("--- Metadata ---");
     println!("Path: {:?}", sst.path());
-    
+
     println!("--- Records ---");
     let iter = sst.iter()?;
     let mut count = 0;
@@ -75,10 +77,12 @@ fn dump_sstable(path: &str) -> std::io::Result<()> {
         let (key, entry) = result?;
         match entry {
             Entry::Value(v) => {
-                println!("  Key: {:?} | Value: {:?} ({} bytes)", 
-                    String::from_utf8_lossy(&key), 
+                println!(
+                    "  Key: {:?} | Value: {:?} ({} bytes)",
+                    String::from_utf8_lossy(&key),
                     String::from_utf8_lossy(&v),
-                    v.len());
+                    v.len()
+                );
             }
             Entry::Tombstone => {
                 println!("  Key: {:?} | [TOMBSTONE]", String::from_utf8_lossy(&key));

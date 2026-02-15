@@ -178,7 +178,8 @@ impl Engine {
         let new_sst = SSTable::open(&output_path)?;
         {
             let mut ssts = self.sstables.write().unwrap();
-            let compacted_paths: std::collections::HashSet<_> = to_compact.iter().map(|s| s.path().to_path_buf()).collect();
+            let compacted_paths: std::collections::HashSet<_> =
+                to_compact.iter().map(|s| s.path().to_path_buf()).collect();
             ssts.retain(|s| !compacted_paths.contains(s.path()));
             ssts.push(Arc::new(new_sst));
         }
@@ -197,7 +198,11 @@ impl Engine {
         };
 
         if sstable_count >= 4 {
-            if self.compaction_running.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            if self
+                .compaction_running
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+            {
                 return;
             }
 
@@ -226,7 +231,8 @@ impl Engine {
                 match SSTable::open(&output_path) {
                     Ok(new_sst) => {
                         let mut ssts = sst_ref.write().unwrap();
-                        let compacted_paths: std::collections::HashSet<_> = to_compact.iter().map(|s| s.path().to_path_buf()).collect();
+                        let compacted_paths: std::collections::HashSet<_> =
+                            to_compact.iter().map(|s| s.path().to_path_buf()).collect();
                         ssts.retain(|s| !compacted_paths.contains(s.path()));
                         ssts.push(Arc::new(new_sst));
                     }
@@ -244,7 +250,14 @@ mod tests {
 
     fn setup_test_dir(name: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("lsm_test_{}_{}", name, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        path.push(format!(
+            "lsm_test_{}_{}",
+            name,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&path).unwrap();
         path
     }
@@ -299,9 +312,10 @@ mod tests {
         let dir = setup_test_dir("engine_flush");
         let engine = Engine::open(&dir, 10).unwrap();
         engine.put(b"key1".to_vec(), b"val1".to_vec()).unwrap();
-        
+
         let sstable_count = || {
-            std::fs::read_dir(&dir).unwrap()
+            std::fs::read_dir(&dir)
+                .unwrap()
                 .filter_map(|e| e.ok())
                 .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("sst"))
                 .count()
@@ -329,7 +343,7 @@ mod tests {
         {
             let engine = Engine::open(&dir, 1024).unwrap();
             engine.put(b"k1".to_vec(), b"v1".to_vec()).unwrap();
-        } 
+        }
 
         let engine = Engine::open(&dir, 1024).unwrap();
         assert_eq!(engine.get(b"k1").unwrap(), Some(b"v1".to_vec()));
@@ -355,13 +369,13 @@ mod tests {
     fn test_multiple_sstables_read() {
         let dir = setup_test_dir("engine_multiple");
         let engine = Engine::open(&dir, 10).unwrap();
-        
+
         engine.put(b"k1".to_vec(), b"v1".to_vec()).unwrap();
-        engine.put(b"k1_f".to_vec(), b"v".to_vec()).unwrap(); 
-        
+        engine.put(b"k1_f".to_vec(), b"v".to_vec()).unwrap();
+
         engine.put(b"k2".to_vec(), b"v2".to_vec()).unwrap();
         engine.put(b"k2_f".to_vec(), b"v".to_vec()).unwrap();
-        
+
         assert_eq!(engine.get(b"k1").unwrap(), Some(b"v1".to_vec()));
         assert_eq!(engine.get(b"k2").unwrap(), Some(b"v2".to_vec()));
         let _ = std::fs::remove_dir_all(dir);
@@ -371,13 +385,13 @@ mod tests {
     fn test_tombstone_across_sstables() {
         let dir = setup_test_dir("engine_tombstone");
         let engine = Engine::open(&dir, 10).unwrap();
-        
+
         engine.put(b"k1".to_vec(), b"v1".to_vec()).unwrap();
         engine.put(b"f1".to_vec(), b"v".to_vec()).unwrap();
-        
+
         engine.delete(b"k1".to_vec()).unwrap();
         engine.put(b"f2".to_vec(), b"v".to_vec()).unwrap();
-        
+
         assert_eq!(engine.get(b"k1").unwrap(), None);
         let _ = std::fs::remove_dir_all(dir);
     }
