@@ -1,0 +1,10 @@
+[package]
+name = "lsm_storage_engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# No external dependencies to ensure compilation in environment without C compiler
+
+[dev-dependencies]
+# No external dev-dependencies
