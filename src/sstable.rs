@@ -200,7 +200,7 @@ impl SSTable {
             bytes_to_read -= to_read as u64;
         }
 
-        if !hasher != expected_checksum {
+        if (!hasher) != expected_checksum {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "SSTable checksum mismatch"));
         }
 
