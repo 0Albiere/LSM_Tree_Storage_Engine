@@ -22,7 +22,7 @@ fn main() -> std::io::Result<()> {
     let dir = setup_test_dir("ycsb_bench");
     let engine = Engine::open(&dir, 4 * 1024 * 1024)?; // 4MB memtable
 
-    let counts = [100_000, 1_000_000]; // 1M as requested (10M might be too slow for this environment, let's start with 1M)
+    let counts = [1_000_000, 10_000_000]; // 1M and 10M as requested
 
     for &count in &counts {
         println!("--- Benchmarking {} writes ---", count);
