@@ -8,3 +8,7 @@ edition = "2024"
 
 [dev-dependencies]
 # No external dev-dependencies
+
+[[bench]]
+name = "ycsb"
+harness = false

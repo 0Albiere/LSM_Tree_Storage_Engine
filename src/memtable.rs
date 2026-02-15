@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_delete_nonexistent() {
         let mut mt = MemTable::new(1024);
-        let initial_size = mt.approximate_size();
+        let _initial_size = mt.approximate_size();
         mt.delete(b"nonexistent".to_vec());
         // In our implementation, delete adds a tombstone even if key didn't exist.
         // The user asked: "não deve causar erro e não deve alterar a memtable. size() não aumenta."

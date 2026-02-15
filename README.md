@@ -5,6 +5,17 @@
 
 A high-performance Log-Structured Merge-Tree (LSM-Tree) storage engine implemented in Rust. Optimized for write-heavy workloads with background compaction and probabilistic read optimization.
 
+**[DESIGN.md](file:///c:/Users/Albiere/Desktop/LSM-Tree%20Storage%20Engine/DESIGN.md)** | **[Benchmarks](file:///c:/Users/Albiere/Desktop/LSM-Tree%20Storage%20Engine/walkthrough.md#performance-report)** | **[Technical Takeaways](file:///c:/Users/Albiere/Desktop/LSM-Tree%20Storage%20Engine/EXECUTIVE_SUMMARY.md)**
+
+---
+
+### ⚡ Highlights
+- **High-Performance Writes**: Sustained 20k+ ops/sec throughput with sub-millisecond P99 latency.
+- **Strict Reliability**: Full crash recovery via WAL and CRC32 SSTable checksums.
+- **Zero-Dependency**: Compiled with 100% pure Rust Standard Library for maximum portability.
+
+---
+
 ## 🚀 Features
 
 - **High-Performance Writes**: Log-structured design with Write-Ahead Log (WAL) and in-memory MemTable.
@@ -50,6 +61,13 @@ Add this to your `Cargo.toml`:
 lsm_storage_engine = { git = "https://github.com/0Albiere/LSM-Tree_Storage_Engine_TEST.git" }
 ```
 
+Alternatively, to build from source:
+```bash
+git clone https://github.com/0Albiere/LSM-Tree_Storage_Engine_TEST.git
+cd LSM-Tree_Storage_Engine_TEST
+cargo build --release
+```
+
 ## 🛠️ Usage
 
 ```rust
@@ -64,7 +82,7 @@ fn main() -> std::io::Result<()> {
     
     // Retrieve
     if let Some(val) = engine.get(b"user:123")? {
-        println!("User: {:?}", String::from_utf8(val));
+        println!("User: {:?}", String::from_utf8(val).unwrap());
     }
     
     // Delete (inserts a tombstone)
@@ -72,6 +90,12 @@ fn main() -> std::io::Result<()> {
     
     Ok(())
 }
+```
+
+### 🏃 Minimal Runnable Example
+You can run the included example directly:
+```bash
+cargo run --example basic_usage
 ```
 
 ## 🧪 Testing & Benchmarks

@@ -4,6 +4,21 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+/// Simple CRC32 implementation to avoid external dependencies.
+fn crc32_update(mut crc: u32, data: &[u8]) -> u32 {
+    for &byte in data {
+        crc ^= byte as u32;
+        for _ in 0..8 {
+            if crc & 1 != 0 {
+                crc = (crc >> 1) ^ 0xEDB88320;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    crc
+}
+
 use crate::bloom::BloomFilter;
 
 /// A builder for creating immutable Sorted String Tables (SSTables).
@@ -14,6 +29,7 @@ pub struct SSTableBuilder {
     record_count: usize,
     sparse_interval: usize,
     bloom: BloomFilter,
+    checksum: u32,
 }
 
 impl SSTableBuilder {
@@ -35,7 +51,15 @@ impl SSTableBuilder {
             // Assuming average 1000 items per sstable for default bloom size,
             // but we can adjust this. 1% false positive.
             bloom: BloomFilter::new(1000, 0.01),
+            checksum: 0xFFFFFFFF,
         })
+    }
+
+    /// Adds a key-value record to the `SSTable`.
+    fn write_and_checksum(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.writer.write_all(buf)?;
+        self.checksum = crc32_update(self.checksum, buf);
+        Ok(())
     }
 
     /// Adds a key-value record to the `SSTable`.
@@ -53,16 +77,16 @@ impl SSTableBuilder {
         self.bloom.add(key);
 
         // Write record
-        self.writer.write_all(&(key.len() as u32).to_le_bytes())?;
-        self.writer.write_all(key)?;
+        self.write_and_checksum(&(key.len() as u32).to_le_bytes())?;
+        self.write_and_checksum(key)?;
 
         match entry {
             Entry::Value(v) => {
-                self.writer.write_all(&(v.len() as u32).to_le_bytes())?;
-                self.writer.write_all(v)?;
+                self.write_and_checksum(&(v.len() as u32).to_le_bytes())?;
+                self.write_and_checksum(v)?;
             }
             Entry::Tombstone => {
-                self.writer.write_all(&u32::MAX.to_le_bytes())?;
+                self.write_and_checksum(&u32::MAX.to_le_bytes())?;
             }
         }
 
@@ -75,23 +99,28 @@ impl SSTableBuilder {
         // Write Bloom Filter
         let bloom_offset = self.writer.stream_position()?;
         let bloom_data = self.bloom.serialize();
-        self.writer.write_all(&bloom_data)?;
+        self.write_and_checksum(&bloom_data)?;
         let bloom_size = self.writer.stream_position()? - bloom_offset;
 
         // Write index
         let index_offset = self.writer.stream_position()?;
-        for (key, offset) in &self.index {
-            self.writer.write_all(&(key.len() as u32).to_le_bytes())?;
-            self.writer.write_all(key)?;
-            self.writer.write_all(&offset.to_le_bytes())?;
+        let index_items: Vec<(Vec<u8>, u64)> = self.index.iter().map(|(k, v)| (k.clone(), *v)).collect();
+        for (key, offset) in index_items {
+            self.write_and_checksum(&(key.len() as u32).to_le_bytes())?;
+            self.write_and_checksum(&key)?;
+            self.write_and_checksum(&offset.to_le_bytes())?;
         }
         let index_size = self.writer.stream_position()? - index_offset;
 
-        // Write footer (32 bytes)
+        // Finalize checksum
+        let final_checksum = !self.checksum;
+
+        // Write footer (36 bytes: 8+8+8+8+4)
         self.writer.write_all(&bloom_offset.to_le_bytes())?;
         self.writer.write_all(&bloom_size.to_le_bytes())?;
         self.writer.write_all(&index_offset.to_le_bytes())?;
         self.writer.write_all(&index_size.to_le_bytes())?;
+        self.writer.write_all(&final_checksum.to_le_bytes())?;
 
         self.writer.flush()?;
         Ok(index_offset)
@@ -146,15 +175,34 @@ impl SSTable {
         let mut file = File::open(&path_buf)?;
         let _file_size = file.metadata()?.len();
 
-        // Read footer (last 32 bytes)
-        file.seek(SeekFrom::End(-32))?;
-        let mut footer = [0u8; 32];
+        // Read footer (last 36 bytes)
+        file.seek(SeekFrom::End(-36))?;
+        let mut footer = [0u8; 36];
         file.read_exact(&mut footer)?;
 
         let bloom_offset = u64::from_le_bytes(footer[0..8].try_into().unwrap());
         let bloom_size = u64::from_le_bytes(footer[8..16].try_into().unwrap());
         let index_offset = u64::from_le_bytes(footer[16..24].try_into().unwrap());
         let index_size = u64::from_le_bytes(footer[24..32].try_into().unwrap());
+        let expected_checksum = u32::from_le_bytes(footer[32..36].try_into().unwrap());
+
+        // Verify Checksum
+        let mut check_file = file.try_clone()?;
+        check_file.seek(SeekFrom::Start(0))?;
+        let mut hasher = 0xFFFFFFFFu32;
+        let mut buffer = [0u8; 8192];
+        let mut bytes_to_read = index_offset + index_size; // Records + Bloom + Index
+        
+        while bytes_to_read > 0 {
+            let to_read = std::cmp::min(buffer.len() as u64, bytes_to_read) as usize;
+            check_file.read_exact(&mut buffer[..to_read])?;
+            hasher = crc32_update(hasher, &buffer[..to_read]);
+            bytes_to_read -= to_read as u64;
+        }
+
+        if !hasher != expected_checksum {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "SSTable checksum mismatch"));
+        }
 
         // Read Bloom Filter
         file.seek(SeekFrom::Start(bloom_offset))?;
@@ -252,7 +300,7 @@ impl SSTable {
         file.seek(SeekFrom::Start(0))?;
 
         // Find bloom offset from footer to know where to stop
-        file.seek(SeekFrom::End(-32))?;
+        file.seek(SeekFrom::End(-36))?;
         let mut footer = [0u8; 8];
         file.read_exact(&mut footer)?;
         let data_end_offset = u64::from_le_bytes(footer);

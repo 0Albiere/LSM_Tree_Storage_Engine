@@ -1,7 +1,6 @@
 use crate::memtable::{Entry, MemTable};
 use crate::sstable::{SSTable, SSTableBuilder};
 use crate::wal::{Wal, WalEntry};
-use std::collections::HashSet;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -154,6 +153,35 @@ impl Engine {
         wal.truncate()?;
 
         self.check_compaction();
+
+        Ok(())
+    }
+
+    /// Manually triggers a full compaction of all current SSTables.
+    pub fn compact(&self) -> io::Result<()> {
+        let to_compact = {
+            let ssts = self.sstables.read().unwrap();
+            if ssts.len() < 2 {
+                return Ok(());
+            }
+            ssts.clone()
+        };
+
+        let sstable_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let output_path = self.dir.join(format!("{:020}.compact.sst", sstable_id));
+
+        crate::compaction::compact(&to_compact, &output_path)?;
+
+        let new_sst = SSTable::open(&output_path)?;
+        {
+            let mut ssts = self.sstables.write().unwrap();
+            let compacted_paths: std::collections::HashSet<_> = to_compact.iter().map(|s| s.path().to_path_buf()).collect();
+            ssts.retain(|s| !compacted_paths.contains(s.path()));
+            ssts.push(Arc::new(new_sst));
+        }
 
         Ok(())
     }
