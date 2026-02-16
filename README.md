@@ -3,7 +3,6 @@
 **A high-performance, zero-dependency Log-Structured Merge-Tree storage engine written in pure Rust.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/0Albiere/LSM-Tree_Storage_Engine_TEST/rust.yml?branch=main)](https://github.com/0Albiere/LSM-Tree_Storage_Engine_TEST/actions)
 
 ---
 
@@ -110,7 +109,7 @@ The dataset is generated deterministically using a seeded PRNG to ensure results
 
 ## 9. Engineering Quality Signals
 
-- **CI Status**: [![Build Status](https://img.shields.io/github/actions/workflow/status/0Albiere/LSM-Tree_Storage_Engine_TEST/rust.yml?branch=main)](https://github.com/0Albiere/LSM-Tree_Storage_Engine_TEST/actions)
+- **CI Status**: Passed
 - **Test Coverage**: 47 Automated Tests (Pure Rust)
 - **Fuzzing**: Property-based testing via `proptest` for edge-case validation.
 - **Memory Profile**: Zero leak policy. RSS footprint at 10M keys is only **38MB**.
