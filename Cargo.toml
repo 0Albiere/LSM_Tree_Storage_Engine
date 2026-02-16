@@ -2,6 +2,15 @@
 name = "lsm_storage_engine"
 version = "0.1.0"
 edition = "2024"
+authors = ["0Albiere"]
+description = "A high-performance, zero-dependency LSM-Tree storage engine in pure Rust."
+license = "MIT"
+repository = "https://github.com/0Albiere/LSM-Tree_Storage_Engine_TEST"
+homepage = "https://github.com/0Albiere/LSM-Tree_Storage_Engine_TEST"
+documentation = "https://docs.rs/lsm_storage_engine"
+readme = "README.md"
+keywords = ["lsm", "kv", "storage", "engine", "database"]
+categories = ["database-implementations", "data-structures"]
 
 [dependencies]
 # No external dependencies to ensure compilation in environment without C compiler
